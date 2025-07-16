@@ -1,5 +1,5 @@
 # Mindspore
-基于mindspore框架下的机器学习项目
+基于mindspore框架下的机器学习项目 
 # 🍎 MindSpore 蔬果识别查价系统
 
 基于 MindSpore 深度学习框架开发的蔬果识别与价格查询系统，支持 131 种常见蔬果的智能识别与实时价格查询。系统包含完整的前后端架构、模型训练与导出流程，可快速部署为生产级应用。
@@ -17,14 +17,18 @@ mindspore-fruit-recognition/
 ├── to_mindir.py            # 模型导出为 MindIR 格式
 ├── app.py                  # Flask 后端服务
 ├── model_predict.py        # 模型推理引擎
+├── static                  # Flask 静态文件夹
+    └── back.png
+    └── Pumpkin.png
 └── templates/
     └── index.html          # 前端交互页面
 ```
 
-## 🛠️ 环境准备
-```bash
-pip install mindspore flask pillow numpy
-```
+## 🛠️ 环境准备 
+本次学习运用Autodl云租用服务器，基础镜像为： 
+Miniconda  conda3 
+Python  3.8(ubuntu20.04) 
+CUDA  11.6 
 
 ## 🔧 数据集结构
 ```
@@ -70,9 +74,3 @@ python app.py
 - **推理速度**：< 0.5s/张（GPU），< 1.2s/张（CPU）
 - **支持类别**：131 种常见蔬果
 
-## 🤝 贡献指南
-1. Fork 本仓库
-2. 创建特性分支：`git checkout -b feature/new-feature`
-3. 提交代码：`git commit -am 'Add some feature'`
-4. 推送到远程：`git push origin feature/new-feature`
-5. 提交 Pull Request
