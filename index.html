@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <link rel="icon" href="{{ url_for('static', filename='images/Pumpkin.png') }}" type="image/x - icon">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>蔬果识别系统</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body { 
+            font-family: Arial; 
+            max-width: 100%; 
+            margin: 0; 
+            padding: 0; 
+            background-image: url("{{ url_for('static', filename='images/back.png') }}");
+            background-size: 1700px 900px;
+            background-repeat: no-repeat; 
+            background-position: center; 
+            background-attachment: fixed; 
+            min-height: 100vh; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center;
+            color: #333;
+            position: relative; /* For body::before */
+        }
+        
+        /* 增加背景图透明度，通过叠加一个半透明白色背景 */
+        body::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.4); /* 白色，40% 透明度 */
+            z-index: -1; /* 确保在内容之下 */
+        }
+
+        .header {
+            width: 100%;
+            padding: 20px;
+            background-color: rgba(255, 255, 255, 0.8);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+        }
+
+        .header h1 {
+            color: #28a745;
+            margin: 0;
+            font-size: 28px;
+        }
+
+        .auth-buttons, .user-info {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .auth-buttons button, .user-info button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
+
+        .auth-buttons .login-btn {
+            background-color: #28a745;
+            color: white;
+        }
+
+        .auth-buttons .login-btn:hover {
+            background-color: #218838;
+        }
+
+        .auth-buttons .signup-btn {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .auth-buttons .signup-btn:hover {
+            background-color: #0056b3;
+        }
+
+        .user-info span {
+            font-weight: bold;
+            color: #28a745;
+            margin-right: 10px;
+        }
+
+        .user-info button {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .user-info button:hover {
+            background-color: #c82333;
+        }
+
+        /* 中央大标题样式 */
+        #centralTitleContainer {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 999; /* Below header, above container */
+            text-align: center;
+            pointer-events: none; /* Allow clicks to pass through */
+        }
+        #centralTitleContainer h1 {
+            color: #28a745; /* 与左上角标题颜色相同 */
+            font-size: 6.0rem; /* 大标题 */
+            margin: 0; /* 移除默认外边距 */
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2); /* 增加一点阴影使其更突出 */
+        }
+
+
+        .container {
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            width: 90%;
+            max-width: 800px;
+            margin-top: 100px; /* Leave space for fixed header */
+            margin-bottom: 40px;
+        }
+
+        .login-prompt {
+            color: #555;
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+
+        .recognition-area {
+            margin-top: 20px;
+            border: 2px dashed #ccc;
+            padding: 30px;
+            border-radius: 8px;
+            transition: border-color 0.3s ease;
+            position: relative;
+        }
+
+        .recognition-area.dragover {
+            border-color: #28a745;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group input[type="file"] {
+            display: none;
+        }
+
+        .input-group label {
+            display: inline-block;
+            background-color: #28a745;
+            color: white;
+            padding: 12px 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
+
+        .input-group label:hover {
+            background-color: #218838;
+        }
+
+        .or-text {
+            margin: 15px 0;
+            color: #777;
+        }
+
+        #imagePreview {
+            max-width: 100%;
+            max-height: 250px;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none; /* Hidden by default */
+            object-fit: contain;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .submit-btn {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 18px;
+            margin-top: 20px;
+            transition: background-color 0.3s ease;
+        }
+
+        .submit-btn:hover:not(:disabled) {
+            background-color: #0056b3;
+        }
+
+        .submit-btn:disabled {
+            background-color: #a0c4ff;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #resultArea {
+            margin-top: 30px;
+            text-align: left;
+            background-color: #e9f7ef;
+            padding: 25px;
+            border-radius: 8px;
+            border: 1px solid #cce5d8;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+            min-height: 100px; /* Ensure it's visible even when empty */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #resultArea h3 {
+            color: #28a745;
+            margin-bottom: 15px;
+            font-size: 22px;
+        }
+
+        #resultArea p {
+            margin-bottom: 8px;
+            font-size: 18px;
+            color: #333;
+        }
+
+        #resultArea p strong {
+            color: #007bff;
+        }
+
+        #resultImage {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 8px;
+            margin-top: 15px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 1001; /* Sit on top */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%;
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgba(0,0,0,0.6); /* Black w/ opacity */
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 30px;
+            border: 1px solid #888;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            position: relative;
+            text-align: center;
+        }
+
+        .close-button {
+            color: #aaa;
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close-button:hover,
+        .close-button:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .modal-content h2 {
+            margin-bottom: 25px;
+            color: #28a745;
+            font-size: 24px;
+        }
+
+        .modal-content input[type="text"],
+        .modal-content input[type="password"] {
+            width: calc(100% - 20px);
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        .modal-content button {
+            background-color: #28a745;
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 18px;
+            transition: background-color 0.3s ease;
+        }
+
+        .modal-content button:hover {
+            background-color: #218838;
+        }
+
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>蔬果识别查价系统</h1>
+        <div class="auth-buttons" id="authButtons">
+            <button class="login-btn" id="loginBtn">登录</button>
+            <button class="signup-btn" id="signupBtn">注册</button>
+        </div>
+        <div class="user-info" id="userInfo" style="display: none;">
+            <span id="usernameDisplay"></span>
+            <button id="logoutBtn">退出登录</button>
+        </div>
+    </header>
+
+    <div id="centralTitleContainer">
+        <h1>🍉蔬果识别系统🍉</h1>
+    </div>
+
+    <div class="container">
+        <div class="recognition-area" id="recognitionArea" style="display: none;">
+            <h2>上传图片识别</h2>
+            <form id="uploadForm" action="/" method="post" enctype="multipart/form-data" target="uploadTarget">
+                <div class="input-group">
+                    <label for="imageInput">选择图片</label>
+                    <input type="file" id="imageInput" name="image" accept="image/*">
+                </div>
+                <p class="or-text">或拖拽图片到此处</p>
+                <img id="imagePreview" src="#" alt="图片预览">
+                <button type="submit" class="submit-btn" id="submitBtn">识别水果</button>
+            </form>
+            <iframe id="uploadTarget" name="uploadTarget" style="display:none;"></iframe>
+            
+            <div id="resultArea" class="mt-4">
+                {% if result %}
+                    {% if result.error %}
+                        <div class="p-4 bg-red-100 rounded-lg overflow-x-auto text-red-700">
+                            <h3>识别失败</h3>
+                            <p>{{ result.error }}</p>
+                        </div>
+                    {% else %}
+                        <h3>识别结果</h3>
+                        <p>种类: <strong>{{ result.class_name }}</strong></p>
+                        <p>参考价格: <strong>¥{{ "%.2f" | format(result.price) }} / kg</strong></p>
+                        {% if result.visual %}
+                            <img id="resultImage" src="data:image/png;base64,{{ result.visual }}" alt="识别图片" style="display: block;">
+                        {% endif %}
+                    {% endif %}
+                {% else %}
+                    <p>等待图片上传和识别...</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" id="closeLoginModal">&times;</span>
+            <h2>登录</h2>
+            <input type="text" id="loginUsername" placeholder="用户名">
+            <input type="password" id="loginPassword" placeholder="密码">
+            <button id="loginSubmit">登录</button>
+        </div>
+    </div>
+
+    <div id="signupModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" id="closeSignupModal">&times;</span>
+            <h2>注册</h2>
+            <input type="text" id="signupUsername" placeholder="用户名">
+            <input type="password" id="signupPassword" placeholder="密码">
+            <button id="signupSubmit">注册</button>
+        </div>
+    </div>
+
+    <script>
+        const loginBtn = document.getElementById('loginBtn');
+        const signupBtn = document.getElementById('signupBtn');
+        const loginModal = document.getElementById('loginModal');
+        const signupModal = document.getElementById('signupModal');
+        const closeLoginModal = document.getElementById('closeLoginModal');
+        const closeSignupModal = document.getElementById('closeSignupModal');
+        const loginSubmit = document.getElementById('loginSubmit');
+        const signupSubmit = document.getElementById('signupSubmit');
+        const authButtons = document.getElementById('authButtons');
+        const userInfo = document.getElementById('userInfo');
+        const usernameDisplay = document.getElementById('usernameDisplay');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const recognitionArea = document.getElementById('recognitionArea');
+        const imageInput = document.getElementById('imageInput');
+        const imagePreview = document.getElementById('imagePreview');
+        const uploadForm = document.getElementById('uploadForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const resultArea = document.getElementById('resultArea');
+        const uploadTarget = document.getElementById('uploadTarget');
+        const centralTitleContainer = document.getElementById('centralTitleContainer'); // 获取中央大标题容器
+
+        // Check login status on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const isLoggedIn = localStorage.getItem('isLoggedIn');
+            const username = localStorage.getItem('username');
+            if (isLoggedIn === 'true' && username) {
+                authButtons.style.display = 'none';
+                userInfo.style.display = 'flex';
+                usernameDisplay.textContent = `欢迎, ${username}！`;
+                recognitionArea.style.display = 'block';
+                centralTitleContainer.style.display = 'none'; // 登录后隐藏大标题
+            } else {
+                authButtons.style.display = 'flex';
+                userInfo.style.display = 'none';
+                recognitionArea.style.display = 'none'; // 未登录时隐藏识别区域
+                centralTitleContainer.style.display = 'block'; // 未登录显示大标题
+            }
+        });
+
+        // Open/Close Modals
+        loginBtn.addEventListener('click', () => { loginModal.style.display = 'flex'; });
+        signupBtn.addEventListener('click', () => { signupModal.style.display = 'flex'; });
+        closeLoginModal.addEventListener('click', () => { loginModal.style.display = 'none'; });
+        closeSignupModal.addEventListener('click', () => { signupModal.style.display = 'none'; });
+
+        // Close modal if clicking outside
+        window.addEventListener('click', (event) => {
+            if (event.target == loginModal) {
+                loginModal.style.display = 'none';
+            }
+            if (event.target == signupModal) {
+                signupModal.style.display = 'none';
+            }
+        });
+
+        // Simple Login/Signup Logic (for demonstration purposes)
+        loginSubmit.addEventListener('click', () => {
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+
+            // In a real application, send this to your backend for validation
+            if (username && password) {
+                localStorage.setItem('isLoggedIn', 'true');
+                localStorage.setItem('username', username);
+                alert('登录成功！');
+                loginModal.style.display = 'none';
+                document.location.reload(); // Reload to update UI
+            } else {
+                alert('请输入用户名和密码！');
+            }
+        });
+
+        signupSubmit.addEventListener('click', () => {
+            const username = document.getElementById('signupUsername').value;
+            const password = document.getElementById('signupPassword').value;
+
+            // In a real application, send this to your backend for registration
+            if (username && password) {
+                // For simplicity, just alert success. In real app, save to DB.
+                alert('注册成功！请登录。');
+                signupModal.style.display = 'none';
+                // Optionally open login modal
+                loginModal.style.display = 'flex';
+            } else {
+                alert('请输入用户名和密码！');
+            }
+        });
+
+        // Image Preview
+        imageInput.addEventListener('change', function() {
+            const file = this.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imagePreview.src = e.target.result;
+                    imagePreview.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            } else {
+                imagePreview.src = '#';
+                imagePreview.style.display = 'none';
+            }
+        });
+
+        // Drag and Drop
+        recognitionArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            recognitionArea.classList.add('dragover');
+        });
+
+        recognitionArea.addEventListener('dragleave', () => {
+            recognitionArea.classList.remove('dragover');
+        });
+
+        recognitionArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            recognitionArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                imageInput.files = files; // Set files to the input element
+                const event = new Event('change');
+                imageInput.dispatchEvent(event); // Trigger change event for preview
+            }
+        });
+
+        // Handle form submission via iframe
+        uploadForm.addEventListener('submit', function(e) {
+            // No e.preventDefault() here because we want the form to submit to the iframe
+            // But we can add checks before submission.
+            if (!imageInput.files.length) {
+                alert('请选择一张图片');
+                e.preventDefault(); // Prevent submission if no file
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="loading"></span> 识别中...';
+            // Clear previous result and show loading message
+            resultArea.innerHTML = `
+                <div class="text-center py-4">
+                    <i class="fa fa-spinner fa-spin text-green-500 text-3xl"></i>
+                    <p class="mt-2 text-gray-600">正在识别中，请稍候...</p>
+                </div>
+            `;
+            imagePreview.style.display = 'none'; // Hide preview image during recognition
+            
+            // Add onload event listener to the iframe
+            uploadTarget.onload = function() {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '识别水果';
+                
+                try {
+                    const iframeDoc = uploadTarget.contentDocument || uploadTarget.contentWindow.document;
+                    console.log("Iframe Loaded. Raw content:");
+                    console.log(iframeDoc.body.innerHTML); // Log the full iframe content for debugging
+
+                    // Try to find the result area from the loaded iframe content
+                    const newResultDiv = iframeDoc.getElementById('resultArea'); 
+                    
+                    if (newResultDiv) {
+                        console.log("Found resultArea in iframe. Updating main page.");
+                        resultArea.innerHTML = newResultDiv.innerHTML;
+                        // Check if the result includes an error
+                        if (newResultDiv.querySelector('.bg-red-100')) {
+                             console.error("服务器返回错误信息:", newResultDiv.innerText);
+                             // Optionally display the original image if an error occurred
+                             if (imagePreview.src && imagePreview.src !== '#') {
+                                imagePreview.style.display = 'block';
+                             }
+                        } else {
+                            // If successful, and there's a visual, ensure it's displayed
+                            const newResultImage = newResultDiv.querySelector('#resultImage');
+                            if (newResultImage) {
+                                newResultImage.style.display = 'block'; // Ensure the image is shown
+                            }
+                            // Optionally hide imagePreview after successful prediction (if you only want to show resultImage)
+                            // imagePreview.style.display = 'none';
+                        }
+                    } else {
+                        console.error("Iframe content did not contain #resultArea. Full iframe body:", iframeDoc.body.innerHTML);
+                        resultArea.innerHTML = `
+                            <div class="p-4 bg-red-100 rounded-lg overflow-x-auto text-red-700">
+                                <p class="text-red-500 mb-2">未找到识别结果区域，服务器响应可能不符合预期。</p>
+                                <pre class="text-sm font-mono">${iframeDoc.body.innerHTML}</pre>
+                                <p class="text-red-500 mt-2">请检查后端Flask代码，确保POST请求后能正确渲染包含 #resultArea 的整个 index.html。</p>
+                            </div>
+                        `;
+                    }
+                } catch (error) {
+                    console.error('处理识别结果出错:', error);
+                    resultArea.innerHTML = `
+                        <div class="text-center py-4 text-red-500">
+                            <i class="fa fa-exclamation-triangle text-2xl"></i>
+                            <p class="mt-2">前端处理识别结果出错</p>
+                            <p class="text-sm mt-1">${error.message}</p>
+                        </div>
+                    `;
+                }
+            };
+            
+            // 提交表单 - 已经在HTML中target="uploadTarget"自动处理
+            // this.submit(); // 这行可以省略，因为form已经配置了target
+        });
+        
+        // 登出功能
+        logoutBtn.addEventListener('click', function() {
+            if (confirm('确定要退出登录吗？')) {
+                // 清除登录状态
+                localStorage.removeItem('isLoggedIn');
+                localStorage.removeItem('username');
+                
+                // 更新UI
+                authButtons.style.display = 'flex';
+                userInfo.style.display = 'none';
+                recognitionArea.style.display = 'none';
+                resultArea.innerHTML = '';
+                imagePreview.style.display = 'none'; // Hide preview on logout
+                centralTitleContainer.style.display = 'block'; // 登出后显示大标题
+                alert('已成功退出登录');
+            }
+        });
+    </script>
+</body>
+</html>
